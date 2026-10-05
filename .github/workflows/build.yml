@@ -1,0 +1,196 @@
+name: Build Linko APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. تنزيل الكود
+        uses: actions/checkout@v4
+
+      - name: 2. إعداد بيئة جافا
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 3. إعداد بيئة نود
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: 4. تجهيز مجلد ملفات الويب
+        run: |
+          mkdir -p www
+          cp index.html www/
+
+      - name: 5. بناء بيئة أندرويد لـ Linko
+        run: |
+          npm init -y
+          npm install @capacitor/core@5 @capacitor/cli@5 @capacitor/android@5
+          npx cap init Linko com.linko.share --web-dir www
+          npx cap add android
+
+          echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m" >> android/gradle.properties
+
+          # إضافة مكتبة السيرفر المدمج NanoHTTPD داخل مشروع أندرويد
+          sed -i '/dependencies {/a \    implementation "org.nanohttpd:nanohttpd:2.3.1"' android/app/build.gradle
+
+          # إضافة الصلاحيات الرسمية للأندرويد
+          sed -i '/<application/i <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />\n<uses-permission android:name="android.permission.INTERNET" />\n<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />\n<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />' android/app/src/main/AndroidManifest.xml
+
+          # برمجة كود الجافا الحقيقي لاستخراج ملفات الـ APK وبثها عبر خادم NanoHTTPD المدمج
+          mkdir -p android/app/src/main/java/com/linko/share/
+          cat << 'EOF' > android/app/src/main/java/com/linko/share/LinkoCore.java
+          package com.linko.share;
+
+          import android.content.Intent;
+          import android.content.pm.ApplicationInfo;
+          import android.content.pm.PackageManager;
+          import android.net.Uri;
+          import androidx.core.content.FileProvider;
+          import com.getcapacitor.JSArray;
+          import com.getcapacitor.JSObject;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+          import fi.iki.elonen.NanoHTTPD;
+          import java.io.File;
+          import java.io.FileInputStream;
+          import java.io.FileOutputStream;
+          import java.io.InputStream;
+          import java.io.OutputStream;
+          import java.util.List;
+
+          @CapacitorPlugin(name = "LinkoCore")
+          public class LinkoCore extends Plugin {
+              private NanoHTTPD server;
+              private File currentServingFile;
+
+              @PluginMethod
+              public void getInstalledApps(PluginCall call) {
+                  try {
+                      PackageManager pm = getContext().getPackageManager();
+                      List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+                      JSArray apps = new JSArray();
+
+                      for (ApplicationInfo appInfo : packages) {
+                          if ((appInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
+                              JSObject obj = new JSObject();
+                              obj.put("appName", pm.getApplicationLabel(appInfo).toString());
+                              obj.put("packageName", appInfo.packageName);
+                              obj.put("sourceDir", appInfo.sourceDir);
+                              apps.put(obj);
+                          }
+                      }
+                      JSObject ret = new JSObject();
+                      ret.put("apps", apps);
+                      call.resolve(ret);
+                  } catch (Exception e) {
+                      call.reject(e.getMessage());
+                  }
+              }
+
+              @PluginMethod
+              public void serveAndShareApk(PluginCall call) {
+                  String packageName = call.getString("packageName");
+                  String appName = call.getString("appName");
+                  try {
+                      PackageManager pm = getContext().getPackageManager();
+                      ApplicationInfo appInfo = pm.getApplicationInfo(packageName, 0);
+
+                      File srcApk = new File(appInfo.sourceDir);
+                      File cacheDir = new File(getContext().getCacheDir(), "apks");
+                      if (!cacheDir.exists()) cacheDir.mkdirs();
+
+                      File destApk = new File(cacheDir, appName + ".apk");
+
+                      // نسخ ملف الـ APK الحقيقي من مسار النظام
+                      InputStream in = new FileInputStream(srcApk);
+                      OutputStream out = new FileOutputStream(destApk);
+                      byte[] buffer = new byte[1024 * 64];
+                      int read;
+                      while ((read = in.read(buffer)) != -1) {
+                          out.write(buffer, 0, read);
+                      }
+                      in.close();
+                      out.close();
+
+                      currentServingFile = destApk;
+
+                      // تشغيل السيرفر المحلي لبث الملف إذا لم يكن شغالاً
+                      if (server == null) {
+                          server = new NanoHTTPD(8080) {
+                              @Override
+                              public Response serve(IHTTPSession session) {
+                                  if (currentServingFile != null && currentServingFile.exists()) {
+                                      try {
+                                          FileInputStream fis = new FileInputStream(currentServingFile);
+                                          return newFixedLengthResponse(Response.Status.OK, "application/vnd.android.package-archive", fis, currentServingFile.length());
+                                      } catch (Exception e) {
+                                          return newFixedLengthResponse("Error reading APK");
+                                      }
+                                  }
+                                  return newFixedLengthResponse("No file ready");
+                              }
+                          };
+                          server.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false);
+                      }
+
+                      // فتح نافذة المشاركة الفورية عبر أندرويد أيضاً لضمان وصول الملف
+                      Uri apkUri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", destApk);
+                      Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                      shareIntent.setType("application/vnd.android.package-archive");
+                      shareIntent.putExtra(Intent.EXTRA_STREAM, apkUri);
+                      shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                      Intent chooser = Intent.createChooser(shareIntent, "إرسال " + appName);
+                      chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                      getContext().startActivity(chooser);
+
+                      JSObject ret = new JSObject();
+                      ret.put("downloadUrl", "http://192.168.43.1:8080/" + appName + ".apk");
+                      call.resolve(ret);
+
+                  } catch (Exception e) {
+                      call.reject(e.getMessage());
+                  }
+              }
+          }
+          EOF
+
+          # تسجيل الإضافة داخل MainActivity
+          cat << 'EOF' > android/app/src/main/java/com/linko/share/MainActivity.java
+          package com.linko.share;
+
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(LinkoCore.class);
+                  super.onCreate(savedInstanceState);
+              }
+          }
+          EOF
+
+          # إعداد FileProvider في Manifest لفتح الملفات وتثبيتها بأمان
+          sed -i '/<\/application>/i <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true"><meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" /></provider>' android/app/src/main/AndroidManifest.xml
+          mkdir -p android/app/src/main/res/xml
+          echo '<paths><cache-path name="apks" path="apks/"/><external-path name="external_files" path="."/></paths>' > android/app/src/main/res/xml/file_paths.xml
+
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: 6. استخراج ملف الـ APK وتجهيزه للتحميل
+        uses: actions/upload-artifact@v4
+        with:
+          name: Linko-Release-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
