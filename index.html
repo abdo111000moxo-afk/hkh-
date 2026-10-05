@@ -3,268 +3,334 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Linko P2P</title>
+  <title>Linko Pro - مشاركة الملفات والتطبيقات</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <style>
     :root {
-      --bg: #070b14;
-      --card-bg: rgba(18, 26, 43, 0.85);
-      --card-border: rgba(0, 255, 204, 0.25);
-      --neon-green: #00ffcc;
-      --neon-cyan: #38bdf8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --accent-green: #10b981;
+      --accent-cyan: #06b6d4;
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="dark"] {
+      --bg: #090d16;
+      --card-bg: #131b2e;
       --text: #f8fafc;
       --text-muted: #94a3b8;
+      --border: #1e293b;
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+      --accent-green: #00ffcc;
+      --accent-cyan: #38bdf8;
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; transition: background 0.3s, color 0.3s; }
 
-    header { background: rgba(11, 17, 32, 0.95); padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); position: sticky; top: 0; z-index: 100; }
-    .brand { font-size: 1.3rem; font-weight: 900; color: var(--neon-green); text-shadow: 0 0 10px rgba(0,255,204,0.4); }
-    .device-badge { font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; background: rgba(56, 189, 248, 0.15); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); }
+    /* Header */
+    header { background: var(--card-bg); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow); }
+    .menu-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text); display: flex; align-items: center; }
+    .brand { font-size: 1.3rem; font-weight: 900; color: var(--primary); letter-spacing: 0.5px; }
+    .theme-toggle { background: var(--border); border: none; padding: 8px 12px; border-radius: 20px; cursor: pointer; font-size: 0.85rem; font-weight: bold; color: var(--text); }
 
-    .nav { display: flex; background: rgba(15, 23, 42, 0.7); border-bottom: 1px solid rgba(255,255,255,0.06); }
-    .nav-btn { flex: 1; padding: 13px 4px; background: none; border: none; color: var(--text-muted); font-size: 0.82rem; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; transition: 0.2s; white-space: nowrap; }
-    .nav-btn.active { color: var(--neon-green); border-bottom-color: var(--neon-green); }
+    /* Main Action Hero */
+    .hero-container { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px; gap: 20px; }
+    .big-btn { width: 100%; max-width: 320px; height: 130px; border-radius: 24px; border: none; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 900; color: #fff; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; box-shadow: var(--shadow); }
+    .big-btn:active { transform: scale(0.97); }
+    .btn-send-hero { background: linear-gradient(135deg, #10b981, #059669); }
+    .btn-receive-hero { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+    .big-btn span { font-size: 0.85rem; font-weight: normal; margin-top: 6px; opacity: 0.9; }
 
-    .container { flex: 1; padding: 14px; padding-bottom: 90px; overflow-y: auto; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+    /* Connected Peer Card */
+    .peer-indicator { width: 100%; max-width: 320px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 14px 18px; text-align: center; font-size: 0.85rem; box-shadow: var(--shadow); }
 
-    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
-    .card h3 { font-size: 0.95rem; color: var(--neon-cyan); margin-bottom: 8px; }
-    .input-field { width: 100%; padding: 12px; border-radius: 10px; background: #0b1120; border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 0.9rem; margin-top: 6px; }
+    /* Drawer Sidebar */
+    .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 200; opacity: 0; pointer-events: none; transition: 0.3s; }
+    .sidebar-overlay.open { opacity: 1; pointer-events: auto; }
+    .sidebar { position: fixed; top: 0; right: -280px; width: 280px; height: 100%; background: var(--card-bg); z-index: 201; box-shadow: var(--shadow); transition: right 0.3s ease; padding: 24px 16px; display: flex; flex-direction: column; }
+    .sidebar.open { right: 0; }
+    .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+    .sidebar-menu { display: flex; flex-direction: column; gap: 10px; }
+    .side-item { padding: 12px 14px; border-radius: 12px; border: none; background: transparent; color: var(--text); font-size: 0.95rem; font-weight: 600; text-align: right; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: 0.2s; }
+    .side-item:hover, .side-item:active { background: var(--border); }
 
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 10px; margin-top: 10px; }
-    .grid-item { background: rgba(11, 17, 32, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 10px 4px; text-align: center; cursor: pointer; position: relative; transition: 0.2s; }
-    .grid-item.selected { border-color: var(--neon-green); background: rgba(0, 255, 204, 0.1); box-shadow: 0 0 10px rgba(0, 255, 204, 0.25); }
-    .item-icon { width: 44px; height: 44px; border-radius: 10px; margin: 0 auto 6px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; background: #1a2438; }
-    .item-name { font-size: 0.72rem; color: #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Screens / Modals */
+    .view-modal { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 150; flex-direction: column; }
+    .view-modal.active { display: flex; }
+    .view-header { background: var(--card-bg); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+    .view-body { flex: 1; padding: 16px; overflow-y: auto; }
 
-    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(7, 11, 20, 0.95); border-top: 1px solid var(--card-border); padding: 12px 18px; display: flex; gap: 12px; z-index: 99; }
-    .btn { flex: 1; padding: 13px; border: none; border-radius: 12px; font-size: 0.92rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
-    .btn-send { background: linear-gradient(135deg, var(--neon-green), #059669); color: #070b14; }
-    .btn-receive { background: linear-gradient(135deg, var(--neon-cyan), #0284c7); color: #070b14; }
+    /* Grid for Apps */
+    .app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 12px; margin-top: 14px; }
+    .app-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: var(--shadow); }
+    .app-card.selected { border-color: var(--primary); background: rgba(37, 99, 235, 0.08); }
+    .app-icon { width: 44px; height: 44px; border-radius: 10px; margin: 0 auto 6px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; background: var(--border); }
+    .app-name { font-size: 0.72rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(6px); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
-    .modal.active { display: flex; }
-    .modal-box { background: #0f172a; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 20px; max-width: 320px; width: 100%; text-align: center; }
+    #qr-scanner-box { width: 100%; border-radius: 12px; overflow: hidden; margin-top: 12px; display: none; }
   </style>
 </head>
-<body>
+<body data-theme="light">
 
   <header>
-    <div class="brand">⚡ LINKO P2P</div>
-    <div class="device-badge">
-      <span id="myDeviceDisplay">جهازي</span>
-    </div>
+    <button class="menu-btn" onclick="toggleSidebar(true)">☰</button>
+    <div class="brand">⚡ LINKO PRO</div>
+    <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">🌙 ليلي</button>
   </header>
 
-  <div class="nav">
-    <button class="nav-btn active" onclick="switchTab('pairingTab', this)">🔗 الربط والاسم</button>
-    <button class="nav-btn" onclick="switchTab('appsTab', this)">🎮 ألعاب وتطبيقات</button>
-    <button class="nav-btn" onclick="switchTab('filesTab', this)">📁 ملفات ووسائط</button>
-    <button class="nav-btn" onclick="switchTab('receiveTab', this)">📥 الاستلام</button>
+  <!-- الصفحة الرئيسية: زري الإرسال والاستلام الكبار فقط -->
+  <div class="hero-container">
+    <div class="peer-indicator">
+      <div>اسم الجهاز: <b id="mainMyName">جهاز البولاقي</b></div>
+      <div style="color:var(--text-muted); margin-top:4px;">المقترن حالياً: <span id="mainPeerStatus" style="color:var(--primary); font-weight:bold;">لا يوجد جهاز مقترن</span></div>
+    </div>
+
+    <button class="big-btn btn-send-hero" onclick="openSendPicker()">
+      🚀 إرسال
+      <span>اختر الألعاب، الملفات، والصور</span>
+    </button>
+
+    <button class="big-btn btn-receive-hero" onclick="openReceiveView()">
+      📥 استلام
+      <span>جاهز للربط واستقبال الحزم</span>
+    </button>
   </div>
 
-  <div class="container">
-    <!-- تبويب الربط -->
-    <div id="pairingTab" class="tab-content active">
-      <div class="card">
-        <h3>اسم جهازك في الشبكة:</h3>
-        <input type="text" id="deviceNameInput" class="input-field" value="هاتف البولاقي" oninput="saveName(this.value)">
-      </div>
-
-      <div class="card" style="text-align: center;">
-        <h3>باركود النقل المباشر (QR Code)</h3>
-        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px;">امسح الكود من هاتف الطرف الآخر لبدء النقل الفوري</p>
-        <div id="pairingQr" style="background:#fff; padding:10px; border-radius:12px; display:inline-block; margin-bottom:12px;"></div>
-        <div style="font-size: 0.82rem; color: var(--neon-green);" id="serverAddressStatus">السيرفر المحلي: نشط</div>
-      </div>
+  <!-- الشريط الجانبي الفخم -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h3 style="font-size:1.1rem; color:var(--primary);">القائمة والأدوات</h3>
+      <button class="menu-btn" onclick="toggleSidebar(false)">✕</button>
     </div>
-
-    <!-- تبويب التطبيقات والألعاب الحقيقية -->
-    <div id="appsTab" class="tab-content">
-      <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <h3>الألعاب والتطبيقات المثبتة</h3>
-          <p style="font-size: 0.72rem; color: var(--text-muted);">اضغط لتحديد اللعبة أو التطبيق لاستخراج الـ APK وإرساله</p>
-        </div>
-        <button onclick="loadDeviceApps()" style="background:var(--neon-green); border:none; padding:8px 12px; border-radius:8px; font-weight:bold; cursor:pointer;">تحديث 🔄</button>
-      </div>
-      <div class="grid" id="appsGrid">
-        <div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--text-muted);">جاري قراءة تطبيقات وألعاب الهاتف...</div>
-      </div>
-    </div>
-
-    <!-- تبويب الملفات والوسائط -->
-    <div id="filesTab" class="tab-content">
-      <div class="card">
-        <h3>تصفح الملفات والصور والفيديوهات</h3>
-        <input type="file" id="filePicker" multiple style="display:none;" onchange="onFilesChosen(event)">
-        <button class="btn btn-send" style="width:100%; margin-top:8px;" onclick="document.getElementById('filePicker').click()">📁 اختيار ملفات من الهاتف</button>
-      </div>
-      <div class="grid" id="filesGrid"></div>
-    </div>
-
-    <!-- تبويب الاستلام والمعاينة -->
-    <div id="receiveTab" class="tab-content">
-      <div class="card">
-        <h3>العناصر المستلمة</h3>
-        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom:12px;">الملفات والـ APK التي تستقبلها تظهر هنا لتثبيتها أو فتحها</p>
-        <div id="receivedBox" style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding:20px;">
-          لا توجد عناصر مستلمة بعد.
-        </div>
-      </div>
+    <div class="sidebar-menu">
+      <button class="side-item" onclick="openPairingView()">🔗 الربط والماسح (QR Code)</button>
+      <button class="side-item" onclick="openAppsView()">🎮 تفحص الألعاب والتطبيقات</button>
+      <button class="side-item" onclick="openFilesPicker()">📁 تصفح الملفات والوسائط</button>
+      <button class="side-item" onclick="openReceiveView()">📥 سجل الاستلام</button>
+      <button class="side-item" onclick="changeDeviceName()">✏️ تعديل اسم جهازي</button>
     </div>
   </div>
 
-  <div class="bottom-bar">
-    <button class="btn btn-send" onclick="sendSelectedApp()">🚀 إرسال (<span id="countSelected">0</span>)</button>
-    <button class="btn btn-receive" onclick="switchTab('receiveTab', document.querySelectorAll('.nav-btn')[3])">📥 الاستلام</button>
-  </div>
-
-  <div class="modal" id="qrModal">
-    <div class="modal-box">
-      <h3 style="color:var(--neon-green); margin-bottom:10px;">امسح الكود للاستلام</h3>
-      <div id="directDownloadQr" style="background:#fff; padding:10px; border-radius:12px; display:inline-block; margin-bottom:12px;"></div>
-      <p id="qrDownloadInfo" style="font-size:0.8rem; color:var(--neon-cyan);"></p>
-      <button onclick="document.getElementById('qrModal').classList.remove('active')" style="margin-top:15px; width:100%; padding:10px; background:rgba(255,255,255,0.1); border:none; border-radius:8px; color:#fff; cursor:pointer;">إغلاق</button>
+  <!-- شاشة اختيار الألعاب والتطبيقات لإرسالها -->
+  <div class="view-modal" id="appsView">
+    <div class="view-header">
+      <h3>الألعاب والتطبيقات المثبتة</h3>
+      <button class="menu-btn" onclick="closeView('appsView')">✕</button>
+    </div>
+    <div class="view-body">
+      <p style="font-size:0.8rem; color:var(--text-muted);">اضغط لتحديد اللعبة أو التطبيق لاستخراج الـ APK وبثه:</p>
+      <div class="app-grid" id="appsGrid">
+        <div style="grid-column: 1/-1; text-align: center; padding: 30px;">جاري فحص وتصفح ألعاب وتطبيقات الهاتف...</div>
+      </div>
+      <button class="big-btn btn-send-hero" style="max-width:100%; height:60px; margin-top:20px; font-size:1rem;" onclick="confirmSendApp()">بدء الإرسال 🚀</button>
     </div>
   </div>
+
+  <!-- شاشة الربط والماسح والباركود -->
+  <div class="view-modal" id="pairingView">
+    <div class="view-header">
+      <h3>الربط بالباركود والماسح</h3>
+      <button class="menu-btn" onclick="closeView('pairingView')">✕</button>
+    </div>
+    <div class="view-body" style="text-align:center;">
+      <h4 style="margin-bottom:8px;">باركود جهازي للربط:</h4>
+      <div id="myQrCode" style="background:#fff; padding:12px; border-radius:14px; display:inline-block; border:1px solid var(--border);"></div>
+      <div style="margin-top:16px;">
+        <button class="big-btn btn-receive-hero" style="max-width:100%; height:55px; font-size:0.95rem;" onclick="startCameraScanner()">📷 تشغيل الكاميرا ومسح الباركود</button>
+        <div id="qr-scanner-box"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- شاشة الاستلام -->
+  <div class="view-modal" id="receiveView">
+    <div class="view-header">
+      <h3>وضع الاستلام والمستلمة</h3>
+      <button class="menu-btn" onclick="closeView('receiveView')">✕</button>
+    </div>
+    <div class="view-body" style="text-align:center;">
+      <div style="font-size:3rem; margin:20px 0;">📡</div>
+      <p style="color:var(--text-muted);">الهاتف في وضع الاستلام النشط عبر السيرفر الداخلي..</p>
+      <div id="receivedItems" style="margin-top:20px; text-align:right;">
+        <div style="padding:15px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); color:var(--text-muted); text-align:center;">لا توجد عناصر مستلمة بعد.</div>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="mediaFileInput" multiple style="display:none;" onchange="handleFilesSelected(event)">
 
   <script>
-    let myDeviceName = localStorage.getItem("linko_device_name") || "هاتف البولاقي";
+    let myName = localStorage.getItem("linko_name") || "هاتف البولاقي";
+    let targetPeer = null;
     let selectedPackage = null;
     let selectedAppName = null;
-    let selectedFiles = [];
+    let qrScanner = null;
 
-    function saveName(val) {
-      myDeviceName = val;
-      localStorage.setItem("linko_device_name", val);
-      document.getElementById("myDeviceDisplay").innerText = val;
-      renderPairingQr();
+    function toggleTheme() {
+      const body = document.body;
+      const isDark = body.getAttribute("data-theme") === "dark";
+      body.setAttribute("data-theme", isDark ? "light" : "dark");
+      document.getElementById("themeBtn").innerText = isDark ? "🌙 ليلي" : "☀️ نهاري";
     }
 
-    function switchTab(id, btn) {
-      document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
-      document.querySelectorAll(".nav-btn").forEach(el => el.classList.remove("active"));
-      document.getElementById(id).classList.add("active");
-      btn.classList.add("active");
+    function toggleSidebar(open) {
+      document.getElementById("sidebar").classList.toggle("open", open);
+      document.getElementById("sidebarOverlay").classList.toggle("open", open);
     }
 
-    function renderPairingQr() {
-      const box = document.getElementById("pairingQr");
+    function closeView(id) {
+      document.getElementById(id).classList.remove("active");
+      if (qrScanner) {
+        qrScanner.stop().catch(()=>{});
+        document.getElementById("qr-scanner-box").style.display = "none";
+      }
+    }
+
+    function openSendPicker() {
+      openAppsView();
+    }
+
+    function openReceiveView() {
+      toggleSidebar(false);
+      document.getElementById("receiveView").classList.add("active");
+    }
+
+    function openPairingView() {
+      toggleSidebar(false);
+      document.getElementById("pairingView").classList.add("active");
+      renderMyQr();
+    }
+
+    function openAppsView() {
+      toggleSidebar(false);
+      document.getElementById("appsView").classList.add("active");
+      loadDeviceApps();
+    }
+
+    function openFilesPicker() {
+      toggleSidebar(false);
+      document.getElementById("mediaFileInput").click();
+    }
+
+    function handleFilesSelected(e) {
+      const count = e.target.files.length;
+      if (count > 0) {
+        alert(`تم اختيار ${count} ملف بنجاح، جاري التجهيز للإرسال.`);
+      }
+    }
+
+    function changeDeviceName() {
+      const newName = prompt("اكتب اسم جهازك الجديد:", myName);
+      if (newName) {
+        myName = newName;
+        localStorage.setItem("linko_name", myName);
+        document.getElementById("mainMyName").innerText = myName;
+        renderMyQr();
+      }
+    }
+
+    function renderMyQr() {
+      const box = document.getElementById("myQrCode");
       box.innerHTML = "";
       new QRCode(box, {
-        text: "LINKO:" + myDeviceName,
-        width: 140,
-        height: 140
+        text: JSON.stringify({ name: myName, ip: "192.168.43.1" }),
+        width: 150,
+        height: 150
       });
     }
 
-    // جلب التطبيقات الحقيقية من الهاتف عبر كود الجافا
+    function startCameraScanner() {
+      const box = document.getElementById("qr-scanner-box");
+      box.style.display = "block";
+      qrScanner = new Html5Qrcode("qr-scanner-box");
+      qrScanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 200 },
+        (decodedText) => {
+          try {
+            const data = JSON.parse(decodedText);
+            targetPeer = data.name;
+          } catch(e) {
+            targetPeer = decodedText;
+          }
+          document.getElementById("mainPeerStatus").innerText = "مرتبط بـ: " + targetPeer;
+          alert("تم الربط بنجاح مع: " + targetPeer);
+          closeView('pairingView');
+        },
+        () => {}
+      ).catch(() => alert("يرجى تفعيل صلاحية الكاميرا."));
+    }
+
     function loadDeviceApps() {
       if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LinkoCore) {
         window.Capacitor.Plugins.LinkoCore.getInstalledApps().then(res => {
-          renderAppsList(res.apps);
-        }).catch(err => {
-          showDemoApps();
-        });
+          renderApps(res.apps);
+        }).catch(() => loadDemoApps());
       } else {
-        showDemoApps();
+        loadDemoApps();
       }
     }
 
-    function renderAppsList(apps) {
+    function renderApps(apps) {
       const grid = document.getElementById("appsGrid");
       grid.innerHTML = "";
       apps.forEach((app, idx) => {
-        const item = document.createElement("div");
-        item.className = "grid-item";
-        item.id = "app-card-" + idx;
-        item.onclick = () => selectApp(app.packageName, app.appName, item.id);
-        item.innerHTML = `
-          <div class="item-icon">🎮</div>
-          <div class="item-name">${app.appName}</div>
+        const card = document.createElement("div");
+        card.className = "app-card";
+        card.id = "app-" + idx;
+        card.onclick = () => {
+          document.querySelectorAll(".app-card").forEach(c => c.classList.remove("selected"));
+          card.classList.add("selected");
+          selectedPackage = app.packageName;
+          selectedAppName = app.appName;
+        };
+        card.innerHTML = `
+          <div class="app-icon">🎮</div>
+          <div class="app-name">${app.appName}</div>
         `;
-        grid.appendChild(item);
+        grid.appendChild(card);
       });
     }
 
-    function showDemoApps() {
-      const demo = [
+    function loadDemoApps() {
+      renderApps([
         { appName: "PUBG Mobile", packageName: "com.tencent.ig" },
         { appName: "Free Fire", packageName: "com.dts.freefireth" },
-        { appName: "Subway", packageName: "com.kiloo.subwaysurf" },
+        { appName: "Subway Surfers", packageName: "com.kiloo.subwaysurf" },
         { appName: "WhatsApp", packageName: "com.whatsapp" }
-      ];
-      renderAppsList(demo);
+      ]);
     }
 
-    function selectApp(pkg, name, cardId) {
-      document.querySelectorAll(".grid-item").forEach(c => c.classList.remove("selected"));
-      selectedPackage = pkg;
-      selectedAppName = name;
-      document.getElementById(cardId).classList.add("selected");
-      document.getElementById("countSelected").innerText = "1";
-    }
-
-    function onFilesChosen(e) {
-      const files = Array.from(e.target.files);
-      selectedFiles = files;
-      const grid = document.getElementById("filesGrid");
-      grid.innerHTML = "";
-      files.forEach(file => {
-        const item = document.createElement("div");
-        item.className = "grid-item selected";
-        item.innerHTML = `
-          <div class="item-icon">📁</div>
-          <div class="item-name">${file.name}</div>
-        `;
-        grid.appendChild(item);
-      });
-      document.getElementById("countSelected").innerText = files.length;
-    }
-
-    // إرسال التطبيق الحقيقي: استخراج الـ APK وبثه فوراً عبر السيرفر ومشاركته
-    function sendSelectedApp() {
-      if (!selectedPackage && selectedFiles.length === 0) {
-        alert("يرجى اختيار لعبة أو ملف أولاً!");
+    function confirmSendApp() {
+      if (!selectedPackage) {
+        alert("يرجى الضغط على لعبة أو تطبيق أولاً!");
         return;
       }
-
-      if (selectedPackage && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LinkoCore) {
-        // استدعاء دالة الأندرويد لاستخراج الـ APK وبثه
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LinkoCore) {
         window.Capacitor.Plugins.LinkoCore.serveAndShareApk({
           packageName: selectedPackage,
           appName: selectedAppName
         }).then(res => {
-          showDownloadBarcode(res.downloadUrl, selectedAppName);
-        }).catch(err => {
-          alert("خطأ أثناء الاستخراج: " + err);
-        });
+          alert(`تم تجهيز ملف APK لـ (${selectedAppName}) وبثه عبر السيرفر الداخلي.`);
+        }).catch(err => alert("خطأ: " + err));
       } else {
-        showDownloadBarcode("http://192.168.43.1:8080/download", selectedAppName || "الملف المختار");
+        alert(`جاري بث APK (${selectedAppName}) عبر المنفذ المحلي 8080.`);
       }
     }
 
-    function showDownloadBarcode(url, name) {
-      const box = document.getElementById("directDownloadQr");
-      box.innerHTML = "";
-      new QRCode(box, {
-        text: url,
-        width: 160,
-        height: 160
-      });
-      document.getElementById("qrDownloadInfo").innerText = `تم تجهيز ملف APK لـ (${name}) - امسح الباركود للتحميل المباشر`;
-      document.getElementById("qrModal").classList.add("active");
-    }
-
     window.onload = () => {
-      document.getElementById("deviceNameInput").value = myDeviceName;
-      document.getElementById("myDeviceDisplay").innerText = myDeviceName;
-      renderPairingQr();
-      loadDeviceApps();
+      document.getElementById("mainMyName").innerText = myName;
+      renderMyQr();
     };
   </script>
 </body>
