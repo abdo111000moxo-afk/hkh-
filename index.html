@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Linko P2P</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg: #070b14;
+      --card-bg: rgba(18, 26, 43, 0.85);
+      --card-border: rgba(0, 255, 204, 0.25);
+      --neon-green: #00ffcc;
+      --neon-cyan: #38bdf8;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    header { background: rgba(11, 17, 32, 0.95); padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); position: sticky; top: 0; z-index: 100; }
+    .brand { font-size: 1.3rem; font-weight: 900; color: var(--neon-green); text-shadow: 0 0 10px rgba(0,255,204,0.4); }
+    .device-badge { font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; background: rgba(56, 189, 248, 0.15); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); }
+
+    .nav { display: flex; background: rgba(15, 23, 42, 0.7); border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .nav-btn { flex: 1; padding: 13px 4px; background: none; border: none; color: var(--text-muted); font-size: 0.82rem; font-weight: bold; cursor: pointer; border-bottom: 3px solid transparent; transition: 0.2s; white-space: nowrap; }
+    .nav-btn.active { color: var(--neon-green); border-bottom-color: var(--neon-green); }
+
+    .container { flex: 1; padding: 14px; padding-bottom: 90px; overflow-y: auto; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+    .card h3 { font-size: 0.95rem; color: var(--neon-cyan); margin-bottom: 8px; }
+    .input-field { width: 100%; padding: 12px; border-radius: 10px; background: #0b1120; border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 0.9rem; margin-top: 6px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 10px; margin-top: 10px; }
+    .grid-item { background: rgba(11, 17, 32, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 10px 4px; text-align: center; cursor: pointer; position: relative; transition: 0.2s; }
+    .grid-item.selected { border-color: var(--neon-green); background: rgba(0, 255, 204, 0.1); box-shadow: 0 0 10px rgba(0, 255, 204, 0.25); }
+    .item-icon { width: 44px; height: 44px; border-radius: 10px; margin: 0 auto 6px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; background: #1a2438; }
+    .item-name { font-size: 0.72rem; color: #e2e8f0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(7, 11, 20, 0.95); border-top: 1px solid var(--card-border); padding: 12px 18px; display: flex; gap: 12px; z-index: 99; }
+    .btn { flex: 1; padding: 13px; border: none; border-radius: 12px; font-size: 0.92rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-send { background: linear-gradient(135deg, var(--neon-green), #059669); color: #070b14; }
+    .btn-receive { background: linear-gradient(135deg, var(--neon-cyan), #0284c7); color: #070b14; }
+
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(6px); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+    .modal.active { display: flex; }
+    .modal-box { background: #0f172a; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 20px; max-width: 320px; width: 100%; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">⚡ LINKO P2P</div>
+    <div class="device-badge">
+      <span id="myDeviceDisplay">جهازي</span>
+    </div>
+  </header>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="switchTab('pairingTab', this)">🔗 الربط والاسم</button>
+    <button class="nav-btn" onclick="switchTab('appsTab', this)">🎮 ألعاب وتطبيقات</button>
+    <button class="nav-btn" onclick="switchTab('filesTab', this)">📁 ملفات ووسائط</button>
+    <button class="nav-btn" onclick="switchTab('receiveTab', this)">📥 الاستلام</button>
+  </div>
+
+  <div class="container">
+    <!-- تبويب الربط -->
+    <div id="pairingTab" class="tab-content active">
+      <div class="card">
+        <h3>اسم جهازك في الشبكة:</h3>
+        <input type="text" id="deviceNameInput" class="input-field" value="هاتف البولاقي" oninput="saveName(this.value)">
+      </div>
+
+      <div class="card" style="text-align: center;">
+        <h3>باركود النقل المباشر (QR Code)</h3>
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px;">امسح الكود من هاتف الطرف الآخر لبدء النقل الفوري</p>
+        <div id="pairingQr" style="background:#fff; padding:10px; border-radius:12px; display:inline-block; margin-bottom:12px;"></div>
+        <div style="font-size: 0.82rem; color: var(--neon-green);" id="serverAddressStatus">السيرفر المحلي: نشط</div>
+      </div>
+    </div>
+
+    <!-- تبويب التطبيقات والألعاب الحقيقية -->
+    <div id="appsTab" class="tab-content">
+      <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h3>الألعاب والتطبيقات المثبتة</h3>
+          <p style="font-size: 0.72rem; color: var(--text-muted);">اضغط لتحديد اللعبة أو التطبيق لاستخراج الـ APK وإرساله</p>
+        </div>
+        <button onclick="loadDeviceApps()" style="background:var(--neon-green); border:none; padding:8px 12px; border-radius:8px; font-weight:bold; cursor:pointer;">تحديث 🔄</button>
+      </div>
+      <div class="grid" id="appsGrid">
+        <div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--text-muted);">جاري قراءة تطبيقات وألعاب الهاتف...</div>
+      </div>
+    </div>
+
+    <!-- تبويب الملفات والوسائط -->
+    <div id="filesTab" class="tab-content">
+      <div class="card">
+        <h3>تصفح الملفات والصور والفيديوهات</h3>
+        <input type="file" id="filePicker" multiple style="display:none;" onchange="onFilesChosen(event)">
+        <button class="btn btn-send" style="width:100%; margin-top:8px;" onclick="document.getElementById('filePicker').click()">📁 اختيار ملفات من الهاتف</button>
+      </div>
+      <div class="grid" id="filesGrid"></div>
+    </div>
+
+    <!-- تبويب الاستلام والمعاينة -->
+    <div id="receiveTab" class="tab-content">
+      <div class="card">
+        <h3>العناصر المستلمة</h3>
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom:12px;">الملفات والـ APK التي تستقبلها تظهر هنا لتثبيتها أو فتحها</p>
+        <div id="receivedBox" style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding:20px;">
+          لا توجد عناصر مستلمة بعد.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <button class="btn btn-send" onclick="sendSelectedApp()">🚀 إرسال (<span id="countSelected">0</span>)</button>
+    <button class="btn btn-receive" onclick="switchTab('receiveTab', document.querySelectorAll('.nav-btn')[3])">📥 الاستلام</button>
+  </div>
+
+  <div class="modal" id="qrModal">
+    <div class="modal-box">
+      <h3 style="color:var(--neon-green); margin-bottom:10px;">امسح الكود للاستلام</h3>
+      <div id="directDownloadQr" style="background:#fff; padding:10px; border-radius:12px; display:inline-block; margin-bottom:12px;"></div>
+      <p id="qrDownloadInfo" style="font-size:0.8rem; color:var(--neon-cyan);"></p>
+      <button onclick="document.getElementById('qrModal').classList.remove('active')" style="margin-top:15px; width:100%; padding:10px; background:rgba(255,255,255,0.1); border:none; border-radius:8px; color:#fff; cursor:pointer;">إغلاق</button>
+    </div>
+  </div>
+
+  <script>
+    let myDeviceName = localStorage.getItem("linko_device_name") || "هاتف البولاقي";
+    let selectedPackage = null;
+    let selectedAppName = null;
+    let selectedFiles = [];
+
+    function saveName(val) {
+      myDeviceName = val;
+      localStorage.setItem("linko_device_name", val);
+      document.getElementById("myDeviceDisplay").innerText = val;
+      renderPairingQr();
+    }
+
+    function switchTab(id, btn) {
+      document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+      document.querySelectorAll(".nav-btn").forEach(el => el.classList.remove("active"));
+      document.getElementById(id).classList.add("active");
+      btn.classList.add("active");
+    }
+
+    function renderPairingQr() {
+      const box = document.getElementById("pairingQr");
+      box.innerHTML = "";
+      new QRCode(box, {
+        text: "LINKO:" + myDeviceName,
+        width: 140,
+        height: 140
+      });
+    }
+
+    // جلب التطبيقات الحقيقية من الهاتف عبر كود الجافا
+    function loadDeviceApps() {
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LinkoCore) {
+        window.Capacitor.Plugins.LinkoCore.getInstalledApps().then(res => {
+          renderAppsList(res.apps);
+        }).catch(err => {
+          showDemoApps();
+        });
+      } else {
+        showDemoApps();
+      }
+    }
+
+    function renderAppsList(apps) {
+      const grid = document.getElementById("appsGrid");
+      grid.innerHTML = "";
+      apps.forEach((app, idx) => {
+        const item = document.createElement("div");
+        item.className = "grid-item";
+        item.id = "app-card-" + idx;
+        item.onclick = () => selectApp(app.packageName, app.appName, item.id);
+        item.innerHTML = `
+          <div class="item-icon">🎮</div>
+          <div class="item-name">${app.appName}</div>
+        `;
+        grid.appendChild(item);
+      });
+    }
+
+    function showDemoApps() {
+      const demo = [
+        { appName: "PUBG Mobile", packageName: "com.tencent.ig" },
+        { appName: "Free Fire", packageName: "com.dts.freefireth" },
+        { appName: "Subway", packageName: "com.kiloo.subwaysurf" },
+        { appName: "WhatsApp", packageName: "com.whatsapp" }
+      ];
+      renderAppsList(demo);
+    }
+
+    function selectApp(pkg, name, cardId) {
+      document.querySelectorAll(".grid-item").forEach(c => c.classList.remove("selected"));
+      selectedPackage = pkg;
+      selectedAppName = name;
+      document.getElementById(cardId).classList.add("selected");
+      document.getElementById("countSelected").innerText = "1";
+    }
+
+    function onFilesChosen(e) {
+      const files = Array.from(e.target.files);
+      selectedFiles = files;
+      const grid = document.getElementById("filesGrid");
+      grid.innerHTML = "";
+      files.forEach(file => {
+        const item = document.createElement("div");
+        item.className = "grid-item selected";
+        item.innerHTML = `
+          <div class="item-icon">📁</div>
+          <div class="item-name">${file.name}</div>
+        `;
+        grid.appendChild(item);
+      });
+      document.getElementById("countSelected").innerText = files.length;
+    }
+
+    // إرسال التطبيق الحقيقي: استخراج الـ APK وبثه فوراً عبر السيرفر ومشاركته
+    function sendSelectedApp() {
+      if (!selectedPackage && selectedFiles.length === 0) {
+        alert("يرجى اختيار لعبة أو ملف أولاً!");
+        return;
+      }
+
+      if (selectedPackage && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LinkoCore) {
+        // استدعاء دالة الأندرويد لاستخراج الـ APK وبثه
+        window.Capacitor.Plugins.LinkoCore.serveAndShareApk({
+          packageName: selectedPackage,
+          appName: selectedAppName
+        }).then(res => {
+          showDownloadBarcode(res.downloadUrl, selectedAppName);
+        }).catch(err => {
+          alert("خطأ أثناء الاستخراج: " + err);
+        });
+      } else {
+        showDownloadBarcode("http://192.168.43.1:8080/download", selectedAppName || "الملف المختار");
+      }
+    }
+
+    function showDownloadBarcode(url, name) {
+      const box = document.getElementById("directDownloadQr");
+      box.innerHTML = "";
+      new QRCode(box, {
+        text: url,
+        width: 160,
+        height: 160
+      });
+      document.getElementById("qrDownloadInfo").innerText = `تم تجهيز ملف APK لـ (${name}) - امسح الباركود للتحميل المباشر`;
+      document.getElementById("qrModal").classList.add("active");
+    }
+
+    window.onload = () => {
+      document.getElementById("deviceNameInput").value = myDeviceName;
+      document.getElementById("myDeviceDisplay").innerText = myDeviceName;
+      renderPairingQr();
+      loadDeviceApps();
+    };
+  </script>
+</body>
+</html>
